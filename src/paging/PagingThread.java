@@ -4,7 +4,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.twilio.sdk.resource.api.v2010.account.Call;
@@ -40,7 +39,7 @@ public class PagingThread extends Thread {
 	                new PhoneNumber(properties.getProperty("twilio.number")),
 	                body).execute();
 			
-		} catch (JSONException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}

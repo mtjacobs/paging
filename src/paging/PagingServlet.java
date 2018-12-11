@@ -49,6 +49,8 @@ public class PagingServlet extends HttpServlet {
 			String sender = request.getParameter("From");
 			
 			db.execute("insert into messages (direction, sender, recipients, message, timestamp) values (?, ?, ?, ?, ?)", new String[] { "0", sender, null, body, Long.toString(System.currentTimeMillis()) });
+			response.setContentType("text/html");
+			response.getOutputStream().write("<Response></Resonse>".getBytes());
 		}
 		if(uri.startsWith("/read")) {
 			Long timestamp = Long.parseLong(uri.substring(6));

@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+
+<project name="paging" default="build" basedir=".">
+
+	<property name="ant.build.javac.source" value="1.7"/>
+	<property name="ant.build.javac.target" value="1.7"/>
+	
+	<target name="classpath">
+		<path id="local.class.path">
+			<fileset dir="lib" includes="*.jar"/>
+		</path>
+		<path id="local.source.path">
+			<pathelement location="src"/>
+		</path>
+	</target>
+
+	<target name="clean">
+		<delete dir="build"/>
+	</target>
+
+	<target name="prepare" depends="clean">
+		<mkdir dir="build"/>
+		<mkdir dir="build/classes"/>
+		<mkdir dir="build/lib"/>
+		<mkdir dir="build/jar"/>
+	</target>
+
+	<target name="classes" depends="prepare,classpath">
+			<javac debug="on" destdir="build/classes">
+				<classpath><path refid="local.class.path"/></classpath>
+				<classpath><path refid="local.source.path"/></classpath>
+				<src path="src"/>
+			</javac>
+	</target>
+
+	<target name="build" depends="classes">
+		<jar jarfile="build/lib/external-libs.jar">
+			<zipgroupfileset dir="lib"/>
+		</jar>
+		<sleep seconds="1"/>
+		<delete file="runtime/paging.jar"/>
+		<jar jarfile="runtime/paging.jar" basedir="build/classes">
+			<zipfileset src="build/lib/external-libs.jar">
+		    	<exclude name="*"/>
+		    	<exclude name="META-INF/**/*"/>
+			</zipfileset>
+			<zipfileset dir="files"/>
+		    <manifest>
+		        <attribute name="Main-Class" value="paging.PagingServer" />
+		    </manifest>
+		</jar>
+	</target>
+	
+</project>
