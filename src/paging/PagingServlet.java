@@ -118,6 +118,15 @@ public class PagingServlet extends HttpServlet {
 				e.printStackTrace();
 			}
 		}
+		if("/report".equals(id)) {
+			if(!Boolean.TRUE.equals(request.getSession(true).getAttribute("authenticated"))) {
+				respond(response, "login.jsp", new HashMap<String, String>());
+				return;
+			}
+			Map<String, String> parameters = new HashMap<String, String>();
+			parameters.put("contacts", FileUtils.readFileToString(new File("contacts.json")));
+			respond(response, "report.jsp", parameters);
+		}
 	}
 	
 	private JSONArray getMessages(long since) {

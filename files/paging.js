@@ -83,3 +83,17 @@ function buildPagingUI() {
 	}, 2000);
 
 }
+
+
+function buildReportUI() {
+	var div = $('<div></div>').appendTo(document.body);
+	Object.keys(contacts.groups).sort().map(function(name) {
+		$('<div></div>').text(name + ',').appendTo(div);
+		for(var i = 0; i < contacts.groups[name].length; i++) {
+			var pname = contacts.groups[name][i];
+			var person = contacts.individuals[pname];
+			$('<div></div>').text(pname + ',' + person.sms).appendTo(div);
+		}
+	});
+
+}
