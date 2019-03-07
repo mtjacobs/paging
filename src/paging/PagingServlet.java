@@ -72,6 +72,7 @@ public class PagingServlet extends HttpServlet {
 					String group = sendTo.getJSONArray("groups").getString(i);
 					if(!aliases.contains(group)) aliases.add(group);
 					JSONArray members = contacts.getJSONObject("groups").getJSONArray(group);
+					// TODO single- or multi-level iteration
 					for(int j = 0; j < members.length(); j++) {
 						if(!recipients.contains(members.getString(j))) recipients.add(members.getString(j));
 					}

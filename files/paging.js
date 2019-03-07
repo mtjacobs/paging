@@ -44,6 +44,19 @@ function buildPagingUI() {
 	var left = $('<div style="width: 100%; height: 100%; overflow-y: auto"></div>').appendTo($('<div style="position: relative; float: left; height: 100%; display: block; width: 190px; margin-left: -200px; overflow-y: hidden; border-right: 1px solid #CCCCCC;"></div>').appendTo(subcontainer));
 	
 	var div = $('<div><b>Groups</b></div>').appendTo(left);
+	var supergroup = $('<select><option>--</option></select>').appendTo($('<div></div>').appendTo(div)).change(function() {
+		var sg = contacts.supergroups[supergroup.val()];
+		$('input:checkbox').each(function(index, item) {
+			if(item.classList.contains('group')) item.checked=false;
+		});
+		if(sg == null) return;
+		for(var i = 0; i < sg.length; i++) {
+			$('input[address="' + sg[i] + '"]')[0].checked = true;
+		}
+	});
+	Object.keys(contacts.supergroups).sort().map(function(name) {
+		$('<option>' + name + '</option>').appendTo(supergroup);
+	});
 	Object.keys(contacts.groups).sort().map(function(name) {
 		$('<input type="checkbox" class="group">').attr("address", name).prependTo($('<div><div>').html(name).appendTo(div));
 	});
