@@ -50,7 +50,7 @@ public class PagingServlet extends HttpServlet {
 			
 			db.execute("insert into messages (direction, sender, recipients, message, timestamp) values (?, ?, ?, ?, ?)", new String[] { "0", sender, null, body, Long.toString(System.currentTimeMillis()) });
 			response.setContentType("text/html");
-			response.getOutputStream().write("<Response></Resonse>".getBytes());
+			response.getOutputStream().write("<Response></Response>".getBytes());
 		}
 		if(uri.startsWith("/read")) {
 			Long timestamp = Long.parseLong(uri.substring(6));
@@ -82,9 +82,10 @@ public class PagingServlet extends HttpServlet {
 					if(!recipients.contains(name)) recipients.add(name);
 				}
 				boolean call = "high".equals(request.getParameter("priority"));
+				boolean urgent = !("low".equals(request.getParameter("priority")));
 				long timestamp = System.currentTimeMillis();
 				db.execute("insert into messages (direction, sender, recipients, message, timestamp) values (?, ?, ?, ?, ?)", new String[] { "1", null, StringUtils.join(aliases, ","), body, Long.toString(timestamp) });
-				new PagingThread(properties, contacts, timestamp, recipients, call, body).start();
+				new PagingThread(properties, contacts, timestamp, recipients, urgent, call, body).start();
 			} catch (JSONException e){
 				e.printStackTrace();
 			}

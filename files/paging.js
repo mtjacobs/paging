@@ -23,9 +23,20 @@ function addMessages(messages) {
 function buildPagingUI() {
 	var top = $('<div style="position: absolute; width: 100%; height: 130px; top: 0; border-bottom: 1px solid #CCCCCC; padding-bottom: 10px"></div>').appendTo(document.body);
 	var div = $('<div>Priority </div>').appendTo(top);
-	$('<select id="priority"><option value="low">Low (SMS)</option><option value="high">High (SMS + Phone)</option></select>').appendTo(div);
+	$('<select id="priority"><option value="low">Non-Emergency SMS</option><option value="medium">Emergency SMS</option><option value="high">Emergency SMS + Phone</option></select>').appendTo(div).change(function() {
+		var val = $('#priority').val();
+		if(val == "low") {
+			$('#levelwarning').css('color', 'green').text('Non-Emergency SMS');
+		}
+		if(val == "medium") {
+			$('#levelwarning').css('color', 'orange').text('Emergency SMS');
+		}
+		if(val == "high") {
+			$('#levelwarning').css('color', 'red').text('Emergency SMS + Phone Call');
+		}
+	});
 	textarea = $('<textarea rows="5" cols="60"></textarea>').appendTo($('<div></div>').appendTo(div));
-	var submit = $('<button>SEND</button>').appendTo($('<div></div>').appendTo(div));
+	var submit = $('<button>SEND</button>').prependTo($('<div><span>  </span><span id="levelwarning" style="color: green">Non-Emergency SMS</span></div>').appendTo(div));
 	
 	var container = $('<div style="position: absolute; left: 0px; botom: 0px; top: 150px; width: 100%"></div>').appendTo(document.body);
 	var subcontainer = $('<div style="height: 100%; padding-left: 200px"></div>').appendTo(container);
@@ -87,13 +98,25 @@ function buildPagingUI() {
 
 function buildReportUI() {
 	var div = $('<div></div>').appendTo(document.body);
-	Object.keys(contacts.groups).sort().map(function(name) {
-		$('<div></div>').text(name + ',').appendTo(div);
+	Object.keys(contacts.individuals).sort().map(function(pname) {
+		var groups2 = [];
+		for(var gname in contacts.groups) {
+			for(var i = 0; i < contacts.groups[gname].length; i++) {
+				if(pname == contacts.groups[gname][i]) groups2.push(gname);
+			}
+		}
+		var groups = [];
+		if(groups2.indexOf('A Skiers') >= 0 || groups2.indexOf('A Snowmobile') >= 0 || groups2.indexOf('A Snowcat') >= 0) groups.push('A');
+		if(groups2.indexOf('B Skiers') >= 0 || groups2.indexOf('B Snowmobile') >= 0 || groups2.indexOf('OHV') >= 0) groups.push('B');
+		if(groups2.indexOf('Coordinators') >= 0) groups.push('Coordinators');
+		var person = contacts.individuals[pname];
+		if(groups.length > 0) $('<div></div>').text(pname.split(' ').join(',') + ',' + person.sms + ',' + (person.email || '') + ',' + groups.join(' ')).appendTo(div);
+		/*
+		$('<div></div>').text(name + ',,,').appendTo(div);
 		for(var i = 0; i < contacts.groups[name].length; i++) {
 			var pname = contacts.groups[name][i];
-			var person = contacts.individuals[pname];
-			$('<div></div>').text(pname + ',' + person.sms).appendTo(div);
-		}
+			$('<div></div>').text(pname.split(' ').reverse().join(',') + ',' + person.sms + ',' + (person.email || '')).appendTo(div);
+		}*/
 	});
 
 }
