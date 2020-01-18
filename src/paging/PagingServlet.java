@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -159,7 +160,7 @@ public class PagingServlet extends HttpServlet {
 		String content = IOUtils.toString(getClass().getResourceAsStream((name.startsWith("/") ? "" : "/") + name));
 		content=content.replaceAll("<%.*?%>", "");
 		for(String key : parameters.keySet()) {
-			content=content.replaceAll("\\$\\{" + key + "\\}", parameters.get(key));
+			content=content.replaceAll("\\$\\{" + key + "\\}", Matcher.quoteReplacement(parameters.get(key)));
 		}
 		content=content.replaceAll("\\$\\{.*?\\}", "");
 		response.setContentType("text/html");
