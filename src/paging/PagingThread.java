@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.twilio.sdk.resource.api.v2010.account.Call;
@@ -16,31 +17,33 @@ public class PagingThread extends Thread {
 	private JSONObject contacts;
 	private long timestamp;
 	private List<String> recipients;
-	private boolean urgent;
-	private boolean call;
+	private String priority;
 	private String body;
 	
-	public PagingThread(Properties properties, JSONObject contacts, long timestamp, List<String> recipients, boolean urgent, boolean call, String body) {
+	public PagingThread(Properties properties, JSONObject contacts, long timestamp, List<String> recipients, String priority, String body) {
 		super();
 		this.properties = properties;
 		this.contacts = contacts;
 		this.timestamp = timestamp;
 		this.recipients = recipients;
-		this.urgent = urgent;
-		this.call = call;
+		this.priority = priority;
 		this.body = body;
 	}
 	
-	private void sms(JSONObject contacts, String name, String body, boolean urgent) {
+	private void sms(JSONObject contacts, String name, String body, String priority) {
 		try {
 			JSONObject individual = contacts.getJSONObject("individuals").getJSONObject(name);
-
 			Message.create(
 					properties.getProperty("twilio.accountSid"),
 	                new PhoneNumber(individual.getString("sms")),
-	                new PhoneNumber(properties.getProperty("twilio.number." + (urgent ? "urgent" : "normal"))),
+	                new PhoneNumber(properties.getProperty("twilio.number." + priority)),
 	                body).execute();
-			
+		} catch (JSONException e) {
+			Message.create(
+					properties.getProperty("twilio.accountSid"),
+	                new PhoneNumber(name),
+	                new PhoneNumber(properties.getProperty("twilio.number." + priority)),
+	                body).execute();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -52,7 +55,7 @@ public class PagingThread extends Thread {
 			if(!individual.isNull("phone")) {
 				Call.create(properties.getProperty("twilio.accountSid"),
 						new PhoneNumber(individual.getString("phone")),
-						new PhoneNumber(properties.getProperty("twilio.number.urgent")),
+						new PhoneNumber(properties.getProperty("twilio.number.high")),
 						new URI(properties.getProperty("server") + "/read/" + timestamp)).execute();
 			}
 		} catch (Exception e) {
@@ -63,8 +66,8 @@ public class PagingThread extends Thread {
 	@Override
 	public void run() {
 		for(String name : recipients) {
-			sms(contacts, name, body, urgent);
-			if(call) call(contacts, name, timestamp);
+			sms(contacts, name, body, priority);
+			if("high".equals(priority)) call(contacts, name, timestamp);
 		}
 	}
 

@@ -6,16 +6,20 @@ function findIndividualBy(attr, value) {
 
 function addMessages(messages) {
 	messages.sort((a, b) => a.timestamp - b.timestamp).map(function(msg) {
-		$('<tr></tr>').append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top"></td>').text(msg.outbound ? "TO" : "FROM"))
-			.append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top; min-width: 120px"></td>').text(msg.outbound ? (msg.recipients || []).join(", ") : findIndividualBy("sms", msg.sender)))
+		var message = (msg.message || "").toLowerCase();
+		var color = "black";
+		if(message == "yes" || message.indexOf("y ") == 0 || message.indexOf("yes ") == 0) color = "#00AA00";
+		if(message == "no" || message.indexOf("n ") == 0 || message.indexOf("no ") == 0) color = "#AA0000";
+		$('<tr style="color: ' + color + '"></tr>').append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top"></td>').text(msg.outbound ? "TO" : "FROM"))
+			.append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top; min-width: 120px"></td>').text(msg.outbound ? (msg.recipients || []).join(", ") : findIndividualBy("sms", msg.sender) || msg.sender))
 			.append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top"></td>').text(msg.message))
 			.append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top; min-width: 80px"></td>').text(new Date(msg.timestamp).toLocaleTimeString()))
-			.append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top"></td>').append($('<button>Reply</button>').click(function() {
+			.append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top"></td>').append((msg.outbound || findIndividualBy("sms", msg.sender)) ? $('<button>Reply</button>').click(function() {
 				(msg.outbound ? msg.recipients : [msg.sender]).map(function(addr) {
 					$('input:checkbox[address="' + (findIndividualBy('sms', addr) || addr) + '"]')[0].checked=true;
 				});
 				textarea.focus();
-			})))
+			}) : null))
 			.prependTo(message_container);
 	});	
 }
@@ -44,7 +48,7 @@ function buildPagingUI() {
 	var left = $('<div style="width: 100%; height: 100%; overflow-y: auto"></div>').appendTo($('<div style="position: relative; float: left; height: 100%; display: block; width: 190px; margin-left: -200px; overflow-y: hidden; border-right: 1px solid #CCCCCC;"></div>').appendTo(subcontainer));
 	
 	var div = $('<div><b>Groups</b></div>').appendTo(left);
-	var supergroup = $('<select><option>--</option></select>').appendTo($('<div></div>').appendTo(div)).change(function() {
+	var supergroup = $('<select><option>Select Callout Group</option></select>').appendTo($('<div></div>').appendTo(div)).change(function() {
 		var sg = contacts.supergroups[supergroup.val()];
 		$('input:checkbox').each(function(index, item) {
 			if(item.classList.contains('group')) item.checked=false;

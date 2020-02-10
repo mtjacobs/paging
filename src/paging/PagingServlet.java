@@ -4,9 +4,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.regex.Matcher;
 
 import javax.servlet.ServletException;
@@ -17,6 +19,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -27,10 +30,70 @@ public class PagingServlet extends HttpServlet {
 
 	private Properties properties;
 	private SQLiteJDBCSource db;
+	private JSONObject contacts;
+	
+	private Set<String> following = new ConcurrentHashSet<String>();
 
 	PagingServlet(Properties properties, SQLiteJDBCSource source) {
 		this.properties = properties;
 		this.db = source;
+		try {
+			this.contacts = new JSONObject(FileUtils.readFileToString(new File("contacts.json")));
+		} catch (IOException | JSONException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	private String getNameForNumber(String number) {
+		try {
+			JSONObject individuals = contacts.getJSONObject("individuals");
+			Iterator<String> it = individuals.keys();
+			while(it.hasNext()) {
+				String name = it.next();
+				JSONObject person = individuals.getJSONObject(name);
+				if(person != null && person.has("sms") && number.equals(person.getString("sms"))) return name;
+			}
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	private void sendMessage(String[] groups, String[] individuals, String priority, String body) {
+		sendMessage(groups, individuals, priority, body, true);
+	}
+	
+	private void sendMessage(String[] groups, String[] individuals, String priority, String body, boolean saveToDB) {
+		try {
+			List<String> aliases = new ArrayList<String>();
+			List<String> recipients = new ArrayList<String>();
+			if(groups != null) {
+				for(int i = 0; i < groups.length; i++) {
+					String group = groups[i];
+					if(!aliases.contains(group)) aliases.add(group);
+					JSONArray members = contacts.getJSONObject("groups").getJSONArray(group);
+					// TODO single- or multi-level iteration
+					for(int j = 0; j < members.length(); j++) {
+						if(!recipients.contains(members.getString(j))) recipients.add(members.getString(j));
+					}
+				}
+			}
+			if(individuals != null) {
+				for(int i = 0; i < individuals.length; i++) {
+					String name = individuals[i];
+					if(!aliases.contains(name)) aliases.add(name);
+					if(!recipients.contains(name)) recipients.add(name);
+				}
+			}
+			long timestamp = System.currentTimeMillis();
+			if(saveToDB) {
+				db.execute("insert into messages (direction, sender, recipients, message, timestamp) values (?, ?, ?, ?, ?)", new String[] { "1", null, StringUtils.join(aliases, ","), body, Long.toString(timestamp) });
+			}
+			new PagingThread(properties, contacts, timestamp, recipients, priority, body).start();
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	@Override
@@ -50,6 +113,32 @@ public class PagingServlet extends HttpServlet {
 			String sender = request.getParameter("From");
 			
 			db.execute("insert into messages (direction, sender, recipients, message, timestamp) values (?, ?, ?, ?, ?)", new String[] { "0", sender, null, body, Long.toString(System.currentTimeMillis()) });
+			
+			if(following.size() > 0) {
+				String senderName = getNameForNumber(sender);
+				sendMessage(null, following.toArray(new String[following.size()]), "control", "From " + sender + " " + (senderName != null ? senderName + " " : "") + ": " + body, false);
+			}
+			
+			response.setContentType("text/html");
+			response.getOutputStream().write("<Response></Response>".getBytes());
+		}
+		if("/inboundsmswebhook".equals(uri)) {
+			String body = request.getParameter("Body");
+			String sender = request.getParameter("From");
+			db.execute("insert into messages (direction, sender, recipients, message, timestamp) values (?, ?, ?, ?, ?)", new String[] { "0", sender, "coordinators", body, Long.toString(System.currentTimeMillis()) });
+			if(body.toLowerCase().startsWith("follow")) {
+				following.add(sender);
+				sendMessage(null, new String[] { sender }, "control", "You are now following replies, reply \"quiet\" to stop following", false);
+			} else if(body.toLowerCase().startsWith("quiet")) {
+				following.remove(sender);
+				sendMessage(null, new String[] { sender }, "control", "You have stopped following replies", false);
+			} else if(body.toLowerCase().startsWith("coordinator")) {
+				sendMessage(null, new String[] { "Matt Jacobs" }, "low", "From " + sender + ": " + body);
+				sendMessage(null, new String[] { sender }, "control", "Message sent to coordinators", false);
+			} else {
+				sendMessage(null, new String[] { sender }, "control", "Message not recognized, to send a message to team coordinators, begin your message with the word coordinator", false);
+			}
+			
 			response.setContentType("text/html");
 			response.getOutputStream().write("<Response></Response>".getBytes());
 		}
@@ -65,30 +154,21 @@ public class PagingServlet extends HttpServlet {
 			if(! (Boolean) request.getSession(true).getAttribute("authenticated")) return;
 			try {
 				String body = request.getParameter("message");
-				JSONObject contacts = new JSONObject(FileUtils.readFileToString(new File("contacts.json")));
 				JSONObject sendTo = new JSONObject(request.getParameter("contacts"));
-				List<String> aliases = new ArrayList<String>();
-				List<String> recipients = new ArrayList<String>();
-				for(int i = 0; i < sendTo.getJSONArray("groups").length(); i++) {
-					String group = sendTo.getJSONArray("groups").getString(i);
-					if(!aliases.contains(group)) aliases.add(group);
-					JSONArray members = contacts.getJSONObject("groups").getJSONArray(group);
-					// TODO single- or multi-level iteration
-					for(int j = 0; j < members.length(); j++) {
-						if(!recipients.contains(members.getString(j))) recipients.add(members.getString(j));
-					}
+				String priority = request.getParameter("priority");
+
+				JSONArray jsgroups = sendTo.getJSONArray("groups");
+				String[] groups = new String[jsgroups.length()];
+				for(int i = 0; i < jsgroups.length(); i++) {
+					groups[i] = jsgroups.getString(i);
 				}
-				for(int i = 0; i < sendTo.getJSONArray("individuals").length(); i++) {
-					String name = sendTo.getJSONArray("individuals").getString(i);
-					if(!aliases.contains(name)) aliases.add(name);
-					if(!recipients.contains(name)) recipients.add(name);
+				JSONArray jsindividuals = sendTo.getJSONArray("individuals");
+				String[] individuals = new String[jsindividuals.length()];
+				for(int i = 0; i < jsindividuals.length(); i++) {
+					individuals[i] = jsindividuals.getString(i);
 				}
-				boolean call = "high".equals(request.getParameter("priority"));
-				boolean urgent = !("low".equals(request.getParameter("priority")));
-				long timestamp = System.currentTimeMillis();
-				db.execute("insert into messages (direction, sender, recipients, message, timestamp) values (?, ?, ?, ?, ?)", new String[] { "1", null, StringUtils.join(aliases, ","), body, Long.toString(timestamp) });
-				new PagingThread(properties, contacts, timestamp, recipients, urgent, call, body).start();
-			} catch (JSONException e){
+				sendMessage(groups, individuals, priority, body);
+			} catch (JSONException e) {
 				e.printStackTrace();
 			}
 		}
@@ -103,7 +183,7 @@ public class PagingServlet extends HttpServlet {
 				return;
 			}
 			Map<String, String> parameters = new HashMap<String, String>();
-			parameters.put("contacts", FileUtils.readFileToString(new File("contacts.json")));
+			parameters.put("contacts", contacts.toString());
 			long timestamp = System.currentTimeMillis();
 			parameters.put("timestamp", Long.toString(timestamp));
 			parameters.put("messages", getMessages(timestamp - 24*60*60*1000).toString());
@@ -127,7 +207,7 @@ public class PagingServlet extends HttpServlet {
 				return;
 			}
 			Map<String, String> parameters = new HashMap<String, String>();
-			parameters.put("contacts", FileUtils.readFileToString(new File("contacts.json")));
+			parameters.put("contacts", contacts.toString());
 			respond(response, "report.jsp", parameters);
 		}
 	}
