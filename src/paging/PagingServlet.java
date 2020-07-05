@@ -23,6 +23,7 @@ import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.subethamail.smtp.server.SMTPServer;
 
 public class PagingServlet extends HttpServlet {
 
@@ -42,6 +43,9 @@ public class PagingServlet extends HttpServlet {
 		} catch (IOException | JSONException e) {
 			e.printStackTrace();
 		}
+        SMTPServer smtpServer = new SMTPServer(new EmailHandler(this));
+        smtpServer.setPort(25);
+        smtpServer.start();
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -60,7 +64,7 @@ public class PagingServlet extends HttpServlet {
 		return null;
 	}
 	
-	private void sendMessage(String[] groups, String[] individuals, String priority, String body) {
+	public void sendMessage(String[] groups, String[] individuals, String priority, String body) {
 		sendMessage(groups, individuals, priority, body, true);
 	}
 	

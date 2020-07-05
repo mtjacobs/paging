@@ -8,8 +8,8 @@ function addMessages(messages) {
 	messages.sort((a, b) => a.timestamp - b.timestamp).map(function(msg) {
 		var message = (msg.message || "").toLowerCase();
 		var color = "black";
-		if(message == "yes" || message.indexOf("y ") == 0 || message.indexOf("yes ") == 0) color = "#00AA00";
-		if(message == "no" || message.indexOf("n ") == 0 || message.indexOf("no ") == 0) color = "#AA0000";
+		if(message == "yes" || message == "y" || message.indexOf("y ") == 0 || message.indexOf("yes ") == 0) color = "#00AA00";
+		if(message == "no" || message == "n" || message.indexOf("n ") == 0 || message.indexOf("no ") == 0) color = "#AA0000";
 		$('<tr style="color: ' + color + '"></tr>').append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top"></td>').text(msg.outbound ? "TO" : "FROM"))
 			.append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top; min-width: 120px"></td>').text(msg.outbound ? (msg.recipients || []).join(", ") : findIndividualBy("sms", msg.sender) || msg.sender))
 			.append($('<td style="padding-right: 1em; padding-bottom: 5px; vertical-align: top"></td>').text(msg.message))

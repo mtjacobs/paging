@@ -51,10 +51,12 @@ public class PagingServer {
 		handler.setShowStacks(true);
 		context.setErrorHandler(handler);
 
-		try {
+        try {
 			server.start();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-	}
+        
+	}	
+	
 }
